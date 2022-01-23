@@ -9,23 +9,30 @@ from sqlparse import sql, tokens as T
 
 
 class StatementSplitter:
-    """Filter that split stream at individual statements"""
+    """
+    语句切割
+    Filter that split stream at individual statements"""
 
     def __init__(self):
         self._reset()
 
     def _reset(self):
-        """Set the filter attributes to its default values"""
+        """
+        恢复原始状态
+        Set the filter attributes to its default values"""
         self._in_declare = False
         self._is_create = False
         self._begin_depth = 0
-
+        #消费空白
         self.consume_ws = False
+        #token集合
         self.tokens = []
         self.level = 0
 
     def _change_splitlevel(self, ttype, value):
-        """Get the new split level (increase, decrease or remain equal)"""
+        """
+        获取切割等级
+        Get the new split level (increase, decrease or remain equal)"""
 
         # parenthesis increase/decrease a level
         if ttype is T.Punctuation and value == '(':
@@ -77,7 +84,11 @@ class StatementSplitter:
         return 0
 
     def process(self, stream):
-        """Process the stream"""
+        """
+        处理流
+        逻辑：碰到切割点则进一步，负责退一步
+        Process the stream"""
+        #结束标志服
         EOS_TTYPE = T.Whitespace, T.Comment.Single
 
         # Run over all stream tokens
@@ -87,6 +98,7 @@ class StatementSplitter:
             # whitespace ignores newlines.
             # why don't multi line comments also count?
             if self.consume_ws and ttype not in EOS_TTYPE:
+                #产生一段语句
                 yield sql.Statement(self.tokens)
 
                 # Reset filter and prepare to process next statement
@@ -96,12 +108,15 @@ class StatementSplitter:
             self.level += self._change_splitlevel(ttype, value)
 
             # Append the token to the current statement
+            # 建立token
             self.tokens.append(sql.Token(ttype, value))
 
             # Check if we get the end of a statement
             if self.level <= 0 and ttype is T.Punctuation and value == ';':
+                #结束
                 self.consume_ws = True
 
         # Yield pending statement (if any)
+        # 剩余的无法再匹配的token,单独成为语句
         if self.tokens and not all(t.is_whitespace for t in self.tokens):
             yield sql.Statement(self.tokens)

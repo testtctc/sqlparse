@@ -14,23 +14,32 @@ from sqlparse.utils import imt, remove_quotes
 
 
 class NameAliasMixin:
-    """Implements get_real_name and get_alias."""
+    """
+    别名插件  常见 table as
+    Implements get_real_name and get_alias."""
 
     def get_real_name(self):
-        """Returns the real name (object name) of this identifier."""
+        """
+        获取正名
+        Returns the real name (object name) of this identifier."""
         # a.b
+        assert isinstance(self,TokenList)
         dot_idx, _ = self.token_next_by(m=(T.Punctuation, '.'))
         return self._get_first_name(dot_idx, real_name=True)
 
     def get_alias(self):
-        """Returns the alias for this identifier or ``None``."""
+        """
+        获取别名
+        Returns the alias for this identifier or ``None``."""
 
         # "name AS alias"
+        assert isinstance(self, TokenList)
         kw_idx, kw = self.token_next_by(m=(T.Keyword, 'AS'))
         if kw is not None:
             return self._get_first_name(kw_idx + 1, keywords=True)
 
         # "name alias" or "complicated column expression alias"
+        #  类型 name alias
         _, ws = self.token_next_by(t=T.Whitespace)
         if len(self.tokens) > 2 and ws is not None:
             return self._get_first_name(reverse=True)
@@ -48,13 +57,17 @@ class Token:
                  'is_group', 'is_whitespace')
 
     def __init__(self, ttype, value):
+        #值
         value = str(value)
         self.value = value
+        #值的类型
         self.ttype = ttype
+        #父节点
         self.parent = None
         self.is_group = False
         self.is_keyword = ttype in T.Keyword
-        self.is_whitespace = self.ttype in T.Whitespace
+        self.is_whitespace = self.ttype in T.Whitespace #初始化的时候是否是空白
+        #规范化之后的值
         self.normalized = value.upper() if self.is_keyword else value
 
     def __str__(self):
@@ -73,20 +86,28 @@ class Token:
             id=id(self), **locals())
 
     def _get_repr_name(self):
+        #token类型
         return str(self.ttype).split('.')[-1]
 
     def _get_repr_value(self):
+        #值
         raw = str(self)
         if len(raw) > 7:
             raw = raw[:6] + '...'
         return re.sub(r'\s+', ' ', raw)
 
     def flatten(self):
-        """Resolve subgroups."""
+        """
+        返回本身
+        Resolve subgroups."""
         yield self
 
     def match(self, ttype, values, regex=False):
-        """Checks whether the token matches the given arguments.
+        """
+        匹配
+        首先检查类型是否匹配；当类型不配且值为空时 --> 不匹配
+        当值不为空时，尝试正则表达式匹配
+        Checks whether the token matches the given arguments.
 
         *ttype* is a token type. If this token doesn't match the given token
         type.
@@ -116,12 +137,12 @@ class Token:
 
         if self.is_keyword:
             values = (v.upper() for v in values)
-
+        #最后检查是否属于集合
         return self.normalized in values
 
     def within(self, group_cls):
         """Returns ``True`` if this token is within *group_cls*.
-
+        测试是否是某一个类的子孙节点
         Use this method for example to check if an identifier is within
         a function: ``t.within(sql.Function)``.
         """
@@ -133,11 +154,15 @@ class Token:
         return False
 
     def is_child_of(self, other):
-        """Returns ``True`` if this token is a direct child of *other*."""
+        """
+        是否是子节点
+        Returns ``True`` if this token is a direct child of *other*."""
         return self.parent == other
 
     def has_ancestor(self, other):
-        """Returns ``True`` if *other* is in this tokens ancestry."""
+        """
+        是否是某一个节点的子孙
+        Returns ``True`` if *other* is in this tokens ancestry."""
         parent = self.parent
         while parent:
             if parent == other:
@@ -147,7 +172,11 @@ class Token:
 
 
 class TokenList(Token):
-    """A group of tokens.
+    """
+
+    token的结合
+
+    A group of tokens.
 
     It has an additional instance attribute ``tokens`` which holds a
     list of child-tokens.
@@ -157,6 +186,7 @@ class TokenList(Token):
 
     def __init__(self, tokens=None):
         self.tokens = tokens or []
+        #将所有的token的父类都设置为自身
         [setattr(token, 'parent', self) for token in self.tokens]
         super().__init__(None, str(self))
         self.is_group = True
@@ -171,14 +201,17 @@ class TokenList(Token):
     def __iter__(self):
         return iter(self.tokens)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item:int):
         return self.tokens[item]
 
     def _get_repr_name(self):
         return type(self).__name__
 
     def _pprint_tree(self, max_depth=None, depth=0, f=None, _pre=''):
-        """Pretty-print the object tree."""
+        """
+        打印树
+        max_depth 限定最大深度
+        Pretty-print the object tree."""
         token_count = len(self.tokens)
         for idx, token in enumerate(self.tokens):
             cls = token._get_repr_name()
@@ -196,7 +229,9 @@ class TokenList(Token):
                 token._pprint_tree(max_depth, depth + 1, f, _pre + parent_pre)
 
     def get_token_at_offset(self, offset):
-        """Returns the token that is on position offset."""
+        """
+        根据字符偏离量获取token
+        Returns the token that is on position offset."""
         idx = 0
         for token in self.flatten():
             end = idx + len(token.value)
@@ -205,7 +240,9 @@ class TokenList(Token):
             idx = end
 
     def flatten(self):
-        """Generator yielding ungrouped tokens.
+        """
+        生成器，返回所有的token
+        Generator yielding ungrouped tokens.
 
         This method is recursively called for all child tokens.
         """
@@ -216,6 +253,7 @@ class TokenList(Token):
                 yield token
 
     def get_sublists(self):
+        """返回所有组合token"""
         for token in self.tokens:
             if token.is_group:
                 yield token
@@ -225,7 +263,13 @@ class TokenList(Token):
         return self.tokens
 
     def _token_matching(self, funcs, start=0, end=None, reverse=False):
-        """next token that match functions"""
+        """
+        找到第一个符合预期的token
+        func: return boolean
+        next token that match functions
+
+        return (idx,token)
+        """
         if start is None:
             return None
 
@@ -233,6 +277,7 @@ class TokenList(Token):
             funcs = (funcs,)
 
         if reverse:
+            #从最后开始遍历
             assert end is None
             for idx in range(start - 2, -1, -1):
                 token = self.tokens[idx]
@@ -240,6 +285,7 @@ class TokenList(Token):
                     if func(token):
                         return idx, token
         else:
+            #从前开始遍历
             for idx, token in enumerate(self.tokens[start:end], start=start):
                 for func in funcs:
                     if func(token):
@@ -247,7 +293,9 @@ class TokenList(Token):
         return None, None
 
     def token_first(self, skip_ws=True, skip_cm=False):
-        """Returns the first child token.
+        """
+        第一个token
+        Returns the first child token.
 
         If *skip_ws* is ``True`` (the default), whitespace
         tokens are ignored.
@@ -262,6 +310,14 @@ class TokenList(Token):
         return self._token_matching(matcher)[1]
 
     def token_next_by(self, i=None, m=None, t=None, idx=-1, end=None):
+        """
+
+        找到符合预期的token
+
+        i -- > class
+        m --> token pattern
+        t --> token type
+        """
         idx += 1
         return self._token_matching(lambda tk: imt(tk, i, m, t), idx, end)
 
@@ -300,13 +356,19 @@ class TokenList(Token):
         return self._token_matching(matcher, idx, reverse=_reverse)
 
     def token_index(self, token, start=0):
-        """Return list index of token."""
+        """
+        索引
+        Return list index of token."""
         start = start if isinstance(start, int) else self.token_index(start)
         return start + self.tokens[start:].index(token)
 
     def group_tokens(self, grp_cls, start, end, include_end=True,
                      extend=False):
-        """Replace tokens by an instance of *grp_cls*."""
+        """
+        grp_cls:组的类
+        将部分token放入组里面
+
+        Replace tokens by an instance of *grp_cls*."""
         start_idx = start
         start = self.tokens[start_idx]
 
@@ -315,7 +377,7 @@ class TokenList(Token):
         # will be needed later for new group_clauses
         # while skip_ws and tokens and tokens[-1].is_whitespace:
         #     tokens = tokens[:-1]
-
+        #扩展
         if extend and isinstance(start, grp_cls):
             subtokens = self.tokens[start_idx + 1:end_idx]
 
@@ -326,9 +388,10 @@ class TokenList(Token):
         else:
             subtokens = self.tokens[start_idx:end_idx]
             grp = grp_cls(subtokens)
-            self.tokens[start_idx:end_idx] = [grp]
+            self.tokens[start_idx:end_idx] = [grp] #直接合并
             grp.parent = self
 
+        #重新定义继承关系
         for token in subtokens:
             token.parent = grp
 
@@ -342,7 +405,9 @@ class TokenList(Token):
         self.tokens.insert(where, token)
 
     def insert_after(self, where, token, skip_ws=True):
-        """Inserts *token* after *where*."""
+        """
+        插入
+        Inserts *token* after *where*."""
         if not isinstance(where, int):
             where = self.token_index(where)
         nidx, next_ = self.token_next(where, skip_ws=skip_ws)
@@ -357,7 +422,9 @@ class TokenList(Token):
         return self.get_alias() is not None
 
     def get_alias(self):
-        """Returns the alias for this identifier or ``None``."""
+        """
+        自定义别名
+        Returns the alias for this identifier or ``None``."""
         return None
 
     def get_name(self):
@@ -404,7 +471,9 @@ class Statement(TokenList):
     """Represents a SQL statement."""
 
     def get_type(self):
-        """Returns the type of a statement.
+        """
+        看第一个词
+        Returns the type of a statement.
 
         The returned value is a string holding an upper-cased reprint of
         the first DML or DDL keyword. If the first token in this group
@@ -451,7 +520,9 @@ class Identifier(NameAliasMixin, TokenList):
         return token is not None
 
     def get_typecast(self):
-        """Returns the typecast or ``None`` of this object as a string."""
+        """
+         类型转化
+        Returns the typecast or ``None`` of this object as a string."""
         midx, marker = self.token_next_by(m=(T.Punctuation, '::'))
         nidx, next_ = self.token_next(midx, skip_ws=False)
         return next_.value if next_ else None
@@ -484,7 +555,9 @@ class IdentifierList(TokenList):
 
 
 class TypedLiteral(TokenList):
-    """A typed literal, such as "date '2001-09-28'" or "interval '2 hours'"."""
+    """
+    时间序列
+    A typed literal, such as "date '2001-09-28'" or "interval '2 hours'"."""
     M_OPEN = [(T.Name.Builtin, None), (T.Keyword, "TIMESTAMP")]
     M_CLOSE = T.String.Single, None
     M_EXTEND = T.Keyword, ("DAY", "HOUR", "MINUTE", "MONTH", "SECOND", "YEAR")
@@ -497,6 +570,7 @@ class Parenthesis(TokenList):
 
     @property
     def _groupable_tokens(self):
+        """包含的token"""
         return self.tokens[1:-1]
 
 
@@ -542,6 +616,7 @@ class Comment(TokenList):
     """A comment."""
 
     def is_multiline(self):
+        """是否是多行"""
         return self.tokens and self.tokens[0].ttype == T.Comment.Multiline
 
 
@@ -627,18 +702,26 @@ class Function(NameAliasMixin, TokenList):
 
 
 class Begin(TokenList):
-    """A BEGIN/END block."""
+    """
+    开始算子
+    A BEGIN/END block."""
     M_OPEN = T.Keyword, 'BEGIN'
     M_CLOSE = T.Keyword, 'END'
 
 
 class Operation(TokenList):
-    """Grouping of operations"""
+    """
+    操作符 组合
+    Grouping of operations"""
 
 
 class Values(TokenList):
-    """Grouping of values"""
+    """
+    值组合
+    Grouping of values"""
 
 
 class Command(TokenList):
-    """Grouping of CLI commands."""
+    """
+    命令集合
+    Grouping of CLI commands."""

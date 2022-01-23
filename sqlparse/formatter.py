@@ -12,7 +12,11 @@ from sqlparse.exceptions import SQLParseError
 
 
 def validate_options(options):
-    """Validates options."""
+    """Validates options.
+
+    参数校验
+
+    """
     kwcase = options.get('keyword_case')
     if kwcase not in [None, 'upper', 'lower', 'capitalize']:
         raise SQLParseError('Invalid value for keyword_case: '
@@ -130,7 +134,9 @@ def validate_options(options):
 
 
 def build_filter_stack(stack, options):
-    """Setup and return a filter stack.
+    """
+    添加过滤层
+    Setup and return a filter stack.
 
     Args:
       stack: :class:`~sqlparse.filters.FilterStack` instance

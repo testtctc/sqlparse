@@ -9,13 +9,15 @@ from sqlparse import sql
 from sqlparse import tokens as T
 from sqlparse.utils import recurse, imt
 
-T_NUMERICAL = (T.Number, T.Number.Integer, T.Number.Float)
-T_STRING = (T.String, T.String.Single, T.String.Symbol)
-T_NAME = (T.Name, T.Name.Placeholder)
-
+T_NUMERICAL = (T.Number, T.Number.Integer, T.Number.Float)  #数值类型
+T_STRING = (T.String, T.String.Single, T.String.Symbol) #字符串
+T_NAME = (T.Name, T.Name.Placeholder) #名称
 
 def _group_matching(tlist, cls):
-    """Groups Tokens that have beginning and end."""
+    """
+    辅助函数,用于聚合token
+    组合匹配
+    Groups Tokens that have beginning and end."""
     opens = []
     tidx_offset = 0
     for idx, token in enumerate(list(tlist)):
@@ -33,10 +35,10 @@ def _group_matching(tlist, cls):
             # should check for all open/close tokens at once to avoid recursion
             _group_matching(token, cls)
             continue
-
+        #开口
         if token.match(*cls.M_OPEN):
             opens.append(tidx)
-
+        #闭口
         elif token.match(*cls.M_CLOSE):
             try:
                 open_idx = opens.pop()
@@ -54,6 +56,7 @@ def group_brackets(tlist):
 
 
 def group_parenthesis(tlist):
+    print("in group_parenthesis")
     _group_matching(tlist, sql.Parenthesis)
 
 
@@ -206,6 +209,7 @@ def group_comparison(tlist):
             return False
 
     def post(tlist, pidx, tidx, nidx):
+        #比较符号为二元操作符
         return pidx, nidx
 
     valid_prev = valid_next = valid
@@ -301,11 +305,15 @@ def group_comments(tlist):
 
 
 @recurse(sql.Where)
-def group_where(tlist):
+def group_where(tlist:sql.TokenList):
+    """
+    组合所有的语句
+    where条件语句"""
     tidx, token = tlist.token_next_by(m=sql.Where.M_OPEN)
     while token:
         eidx, end = tlist.token_next_by(m=sql.Where.M_CLOSE, idx=tidx)
 
+        #找到是则使用最后一个元素怒
         if end is None:
             end = tlist._groupable_tokens[-1]
         else:
@@ -318,7 +326,7 @@ def group_where(tlist):
 
 
 @recurse()
-def group_aliased(tlist):
+def group_aliased(tlist:sql.TokenList):
     I_ALIAS = (sql.Parenthesis, sql.Function, sql.Case, sql.Identifier,
                sql.Operation, sql.Comparison)
 
@@ -373,6 +381,7 @@ def align_comments(tlist):
 
 
 def group_values(tlist):
+    #聚合值
     tidx, token = tlist.token_next_by(m=(T.Keyword, 'VALUES'))
     start_idx = tidx
     end_idx = -1
@@ -381,10 +390,16 @@ def group_values(tlist):
             end_idx = tidx
         tidx, token = tlist.token_next(tidx)
     if end_idx != -1:
+        #聚合部分token
         tlist.group_tokens(sql.Values, start_idx, end_idx, extend=True)
 
 
-def group(stmt):
+def group(stmt:sql.TokenList):
+    """
+    基本原理：利用语句的开始和结束标志，主动的去识别语句，将tokens进行聚合
+
+    必须符合一定的合并顺序，否则会有问题
+    """
     for func in [
         group_comments,
 
@@ -395,7 +410,6 @@ def group(stmt):
         group_if,
         group_for,
         group_begin,
-
         group_functions,
         group_where,
         group_period,
@@ -426,7 +440,13 @@ def _group(tlist, cls, match,
            extend=True,
            recurse=True
            ):
-    """Groups together tokens that are joined by a middle token. i.e. x < y"""
+    """
+    组合
+    valid_prev:有效前置
+    valid_next：有效后置
+    match 匹配
+    post 提交的索引号
+    Groups together tokens that are joined by a middle token. i.e. x < y"""
 
     tidx_offset = 0
     pidx, prev_ = None, None

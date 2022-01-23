@@ -127,6 +127,7 @@ class SpacesAroundOperatorsFilter:
 # postprocess
 
 class SerializerUnicode:
+    """处理语句"""
     @staticmethod
     def process(stmt):
         lines = split_unquoted_newlines(stmt)

@@ -11,14 +11,14 @@ from sqlparse import tokens
 
 
 def is_keyword(value):
+    #是否是关键字
     val = value.upper()
     return (KEYWORDS_COMMON.get(val)
             or KEYWORDS_ORACLE.get(val)
             or KEYWORDS_PLPGSQL.get(val)
             or KEYWORDS_HQL.get(val)
             or KEYWORDS.get(val, tokens.Name)), value
-
-
+#sql语法
 SQL_REGEX = {
     'root': [
         (r'(--|# )\+.*?(\r\n|\r|\n|$)', tokens.Comment.Single.Hint),
@@ -96,9 +96,12 @@ SQL_REGEX = {
         (r'[+/@#%^&|^-]+', tokens.Operator),
     ]}
 
+#标签
 FLAGS = re.IGNORECASE | re.UNICODE
 SQL_REGEX = [(re.compile(rx, FLAGS).match, tt) for rx, tt in SQL_REGEX['root']]
 
+
+# 通用关键字
 KEYWORDS = {
     'ABORT': tokens.Keyword,
     'ABS': tokens.Keyword,
@@ -723,7 +726,7 @@ KEYWORDS_COMMON = {
     'MAX': tokens.Keyword,
     'DISTINCT': tokens.Keyword,
 }
-
+# oracle 关键字
 KEYWORDS_ORACLE = {
     'ARCHIVE': tokens.Keyword,
     'ARCHIVELOG': tokens.Keyword,
@@ -878,6 +881,7 @@ KEYWORDS_PLPGSQL = {
 }
 
 # Hive Syntax
+# hive 语法
 KEYWORDS_HQL = {
     'EXPLODE': tokens.Keyword,
     'DIRECTORY': tokens.Keyword,

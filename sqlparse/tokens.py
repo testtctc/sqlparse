@@ -11,14 +11,16 @@
 
 """Tokens"""
 
-
+#令牌数组
 class _TokenType(tuple):
     parent = None
-
+    #是否包含
     def __contains__(self, item):
         return item is not None and (self is item or item[:len(self)] == self)
 
+    #添加新的节点
     def __getattr__(self, name):
+        #构建元祖
         new = _TokenType(self + (name,))
         setattr(self, name, new)
         new.parent = self
@@ -28,9 +30,11 @@ class _TokenType(tuple):
         # self can be False only if its the `root` i.e. Token itself
         return 'Token' + ('.' if self else '') + '.'.join(self)
 
-
+#实例
 Token = _TokenType()
 
+
+#这里构建树
 # Special token types
 Text = Token.Text
 Whitespace = Text.Whitespace
@@ -45,7 +49,7 @@ Name = Token.Name
 Literal = Token.Literal
 String = Literal.String
 Number = Literal.Number
-Punctuation = Token.Punctuation
+Punctuation = Token.Punctuation   #标点符号
 Operator = Token.Operator
 Comparison = Operator.Comparison
 Wildcard = Token.Wildcard
@@ -58,11 +62,12 @@ Command = Generic.Command
 
 # String and some others are not direct children of Token.
 # alias them:
+# 直接设置
 Token.Token = Token
 Token.String = String
 Token.Number = Number
 
-# SQL specific tokens
+# SQL specific token
 DML = Keyword.DML
 DDL = Keyword.DDL
 CTE = Keyword.CTE

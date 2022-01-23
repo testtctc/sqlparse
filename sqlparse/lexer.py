@@ -19,6 +19,8 @@ from sqlparse.keywords import SQL_REGEX
 from sqlparse.utils import consume
 
 
+#分词器
+
 class Lexer:
     """Lexer
     Empty class. Leaving for backwards-compatibility
@@ -27,6 +29,8 @@ class Lexer:
     @staticmethod
     def get_tokens(text, encoding=None):
         """
+        分词器
+
         Return an iterable of (tokentype, value) pairs generated from
         `text`. If `unfiltered` is set to `True`, the filtering mechanism
         is bypassed even if filters are defined.
@@ -54,27 +58,32 @@ class Lexer:
         else:
             raise TypeError("Expected text or file-like object, got {!r}".
                             format(type(text)))
-
+        #枚举
         iterable = enumerate(text)
+
         for pos, char in iterable:
             for rexmatch, action in SQL_REGEX:
+                #从某个点开始匹配
                 m = rexmatch(text, pos)
 
                 if not m:
                     continue
                 elif isinstance(action, tokens._TokenType):
-                    yield action, m.group()
-                elif callable(action):
+                    yield action, m.group()    # ttype and 所有匹配
+                elif callable(action):    #调用函数
                     yield action(m.group())
-
+                #消费一部分数据
                 consume(iterable, m.end() - pos - 1)
                 break
             else:
+                #如果都没有匹配到，则报错
                 yield tokens.Error, char
 
 
 def tokenize(sql, encoding=None):
-    """Tokenize sql.
+    """
+    分词
+    Tokenize sql.
 
     Tokenize *sql* using the :class:`Lexer` and return a 2-tuple stream
     of ``(token type, value)`` items.

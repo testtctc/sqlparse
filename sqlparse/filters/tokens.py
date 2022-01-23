@@ -8,6 +8,8 @@
 from sqlparse import tokens as T
 
 
+
+#大小写转化
 class _CaseFilter:
     ttype = None
 
@@ -21,11 +23,11 @@ class _CaseFilter:
                 value = self.convert(value)
             yield ttype, value
 
-
+#关键字转化
 class KeywordCaseFilter(_CaseFilter):
     ttype = T.Keyword
 
-
+#识别器转换
 class IdentifierCaseFilter(_CaseFilter):
     ttype = T.Name, T.String.Symbol
 
@@ -37,6 +39,7 @@ class IdentifierCaseFilter(_CaseFilter):
 
 
 class TruncateStringFilter:
+    #截断
     def __init__(self, width, char):
         self.width = width
         self.char = char

@@ -155,6 +155,7 @@ def _error(msg):
 
 
 def main(args=None):
+    """入口"""
     parser = create_parser()
     args = parser.parse_args(args)
 
@@ -188,6 +189,7 @@ def main(args=None):
     except SQLParseError as e:
         return _error('Invalid options: {}'.format(e))
 
+    #入口
     s = sqlparse.format(data, **formatter_opts)
     stream.write(s)
     stream.flush()
